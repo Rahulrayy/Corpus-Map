@@ -115,23 +115,79 @@
       margin-bottom: 10px;
       text-align: center;
     }
-    #timeline-slider {
-      width: 100%;
-      accent-color: #4e79a7;
+    #timeline-slider  { width: 100%; accent-color: #4e79a7; }
+    #timeline-labels  { display: flex; justify-content: space-between; font-size: 11px; color: #aaa; margin-top: 6px; }
+    #timeline-current { text-align: center; font-size: 12px; color: #555; margin-top: 4px; }
+
+    #sidebar {
+      position: fixed;
+      top: 20px;
+      left: 20px;
+      width: 280px;
+      background: white;
+      border: 0.5px solid #e0e0e0;
+      border-radius: 10px;
+      padding: 16px;
+      pointer-events: all;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+      max-height: calc(100vh - 120px);
+      overflow-y: auto;
+      display: none;
     }
-    #timeline-labels {
+    #sidebar-header {
       display: flex;
+      align-items: flex-start;
       justify-content: space-between;
+      margin-bottom: 12px;
+      gap: 8px;
+    }
+    #sidebar-title {
+      font-size: 13px;
+      font-weight: 500;
+      color: #1a1a1a;
+      line-height: 1.4;
+    }
+    #sidebar-close {
+      font-size: 16px;
+      color: #aaa;
+      cursor: pointer;
+      background: none;
+      border: none;
+      padding: 0;
+      flex-shrink: 0;
+      line-height: 1;
+    }
+    #sidebar-close:hover { color: #555; }
+    #sidebar-meta {
       font-size: 11px;
       color: #aaa;
-      margin-top: 6px;
+      margin-bottom: 14px;
     }
-    #timeline-current {
-      text-align: center;
-      font-size: 12px;
-      color: #555;
-      margin-top: 4px;
+    #sidebar-dot {
+      display: inline-block;
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      margin-right: 6px;
+      vertical-align: middle;
     }
+    .sidebar-article {
+      padding: 10px 0;
+      border-top: 0.5px solid #f0f0f0;
+    }
+    .sidebar-article a {
+      font-size: 13px;
+      color: #1a1a1a;
+      text-decoration: none;
+      line-height: 1.5;
+      display: block;
+      margin-bottom: 3px;
+    }
+    .sidebar-article a:hover { color: #4e79a7; }
+    .sidebar-article-meta { font-size: 11px; color: #aaa; }
+    #sidebar::-webkit-scrollbar       { width: 4px; }
+    #sidebar::-webkit-scrollbar-track { background: transparent; }
+    #sidebar::-webkit-scrollbar-thumb { background: #ddd; border-radius: 4px; }
   </style>
 </head>
 <body>
@@ -142,6 +198,15 @@
     <div class="t-title"   id="tt-title"></div>
     <div class="t-meta"    id="tt-meta"></div>
     <div class="t-cluster" id="tt-cluster"></div>
+  </div>
+
+  <div id="sidebar">
+    <div id="sidebar-header">
+      <div id="sidebar-title"></div>
+      <button id="sidebar-close">x</button>
+    </div>
+    <div id="sidebar-meta"></div>
+    <div id="sidebar-articles"></div>
   </div>
 
   <div id="legend">
@@ -205,9 +270,16 @@
   const ttMeta    = document.getElementById('tt-meta');
   const ttCluster = document.getElementById('tt-cluster');
 
+  const sidebar         = document.getElementById('sidebar');
+  const sidebarTitle    = document.getElementById('sidebar-title');
+  const sidebarMeta     = document.getElementById('sidebar-meta');
+  const sidebarArticles = document.getElementById('sidebar-articles');
+
   let allPoints     = [];
   let activeCluster = null;
   let maxDay        = 365;
+  let isDragging    = false;
+  let mouseDownPos  = { x: 0, y: 0 };
 
   function makeCircleTexture() {
     const size   = 64;
@@ -233,7 +305,7 @@
       window.newsData = data;
       allPoints = data.points;
       maxDay    = Math.max(...allPoints.map(p => p.day));
-      document.getElementById('timeline-slider').max = maxDay;
+      document.getElementById('timeline-slider').max   = maxDay;
       document.getElementById('timeline-slider').value = maxDay;
       drawPoints(data.points);
       centerCamera();
@@ -317,11 +389,17 @@
       item.appendChild(dot);
       item.appendChild(lbl);
       item.appendChild(count);
-      item.addEventListener('click', () => highlightCluster(parseInt(id), item));
+      item.addEventListener('click', () => {
+        highlightCluster(parseInt(id), item);
+        openSidebar(parseInt(id), label, data);
+      });
       container.appendChild(item);
     });
 
-    document.getElementById('legend-reset').addEventListener('click', resetHighlight);
+    document.getElementById('legend-reset').addEventListener('click', () => {
+      resetHighlight();
+      closeSidebar();
+    });
   }
 
   function buildTimeline() {
@@ -329,16 +407,11 @@
     const current = document.getElementById('timeline-current');
 
     slider.addEventListener('input', () => {
-      const day      = parseInt(slider.value);
-      const date     = dayToDate(day);
-      const dateStr  = date.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
+      const day     = parseInt(slider.value);
+      const date    = dayToDate(day);
+      const dateStr = date.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
 
-      if (day === maxDay) {
-        current.textContent = 'showing all dates';
-      } else {
-        current.textContent = `up to ${dateStr}`;
-      }
-
+      current.textContent = day === maxDay ? 'showing all dates' : `up to ${dateStr}`;
       applyFilters(day, activeCluster);
     });
   }
@@ -351,11 +424,9 @@
 
   function applyFilters(maxDayFilter, clusterId) {
     const colors = window.pointCloud.geometry.attributes.color;
-
     allPoints.forEach((p, i) => {
       const inDate    = p.day <= maxDayFilter;
       const inCluster = clusterId === null || p.cluster === clusterId;
-
       if (inDate && inCluster) {
         const hex = p.cluster === -1 ? NOISE_COLOR : CLUSTER_COLORS[p.cluster % CLUSTER_COLORS.length];
         const c   = new THREE.Color(hex);
@@ -364,13 +435,13 @@
         colors.setXYZ(i, 0.88, 0.88, 0.88);
       }
     });
-
     colors.needsUpdate = true;
   }
 
   function highlightCluster(clusterId, itemEl) {
     if (activeCluster === clusterId) {
       resetHighlight();
+      closeSidebar();
       return;
     }
     activeCluster = clusterId;
@@ -387,6 +458,72 @@
     applyFilters(day, null);
   }
 
+  function openSidebar(clusterId, label, data) {
+    const color    = CLUSTER_COLORS[clusterId % CLUSTER_COLORS.length];
+    const articles = allPoints
+      .filter(p => p.cluster === clusterId)
+      .sort((a, b) => new Date(a.date) - new Date(b.date))
+      .slice(0, 8);
+
+    sidebarTitle.innerHTML = `<span id="sidebar-dot" style="background:${color}; display:inline-block; width:8px; height:8px; border-radius:50%; margin-right:6px; vertical-align:middle;"></span>${label}`;
+    sidebarMeta.textContent = `${articles.length} of ${allPoints.filter(p => p.cluster === clusterId).length} articles`;
+
+    sidebarArticles.innerHTML = '';
+    articles.forEach(p => {
+      const div  = document.createElement('div');
+      div.className = 'sidebar-article';
+
+      const a    = document.createElement('a');
+      a.href        = p.url;
+      a.target      = '_blank';
+      a.textContent = p.title;
+
+      const meta = document.createElement('div');
+      meta.className   = 'sidebar-article-meta';
+      meta.textContent = `${p.date.slice(0, 10)} — ${p.source}`;
+
+      div.appendChild(a);
+      div.appendChild(meta);
+      sidebarArticles.appendChild(div);
+    });
+
+    sidebar.style.display = 'block';
+  }
+
+  function closeSidebar() {
+    sidebar.style.display = 'none';
+  }
+
+  document.getElementById('sidebar-close').addEventListener('click', () => {
+    closeSidebar();
+    resetHighlight();
+  });
+
+  // click on a point to open its cluster in the sidebar
+  renderer.domElement.addEventListener('mousedown', e => {
+    mouseDownPos = { x: e.clientX, y: e.clientY };
+  });
+
+  renderer.domElement.addEventListener('mouseup', e => {
+    const dx = Math.abs(e.clientX - mouseDownPos.x);
+    const dy = Math.abs(e.clientY - mouseDownPos.y);
+    if (dx > 4 || dy > 4) return; // was a drag, not a click
+
+    mouse.x =  (e.clientX / window.innerWidth)  * 2 - 1;
+    mouse.y = -(e.clientY / window.innerHeight) * 2 + 1;
+    raycaster.setFromCamera(mouse, camera);
+    const hits = raycaster.intersectObject(window.pointCloud);
+
+    if (hits.length > 0) {
+      const p = allPoints[hits[0].index];
+      if (p.cluster === -1) return;
+      const label  = window.newsData.clusters[p.cluster];
+      const itemEl = document.querySelector(`.legend-item[data-cluster="${p.cluster}"]`);
+      highlightCluster(p.cluster, itemEl);
+      openSidebar(p.cluster, label, window.newsData);
+    }
+  });
+
   window.addEventListener('mousemove', e => {
     mouse.x =  (e.clientX / window.innerWidth)  * 2 - 1;
     mouse.y = -(e.clientY / window.innerHeight) * 2 + 1;
@@ -397,9 +534,7 @@
     if (hits.length > 0) {
       const idx = hits[0].index;
       const p   = allPoints[idx];
-      const clusterLabel = p.cluster === -1
-        ? 'noise'
-        : window.newsData.clusters[p.cluster];
+      const clusterLabel = p.cluster === -1 ? 'noise' : window.newsData.clusters[p.cluster];
 
       ttTitle.textContent   = p.title;
       ttMeta.textContent    = `${p.date.slice(0, 10)} — ${p.source}`;
