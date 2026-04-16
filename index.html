@@ -25,11 +25,44 @@
       height: 100vh;
       pointer-events: none;
     }
+    #tooltip {
+      position: fixed;
+      display: none;
+      background: white;
+      border: 0.5px solid #e0e0e0;
+      border-radius: 8px;
+      padding: 10px 14px;
+      max-width: 280px;
+      pointer-events: none;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+    }
+    #tooltip .t-title {
+      font-size: 13px;
+      font-weight: 500;
+      color: #1a1a1a;
+      line-height: 1.5;
+      margin-bottom: 4px;
+    }
+    #tooltip .t-meta {
+      font-size: 11px;
+      color: #888;
+    }
+    #tooltip .t-cluster {
+      font-size: 11px;
+      color: #555;
+      margin-top: 4px;
+      font-style: italic;
+    }
   </style>
 </head>
 <body>
   <div id="canvas-container"></div>
   <div id="ui-overlay"></div>
+  <div id="tooltip">
+    <div class="t-title" id="tt-title"></div>
+    <div class="t-meta"  id="tt-meta"></div>
+    <div class="t-cluster" id="tt-cluster"></div>
+  </div>
 
   <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
@@ -67,10 +100,22 @@
   ];
   const NOISE_COLOR = '#cccccc';
 
+  const raycaster = new THREE.Raycaster();
+  raycaster.params.Points.threshold = 0.15;
+  const mouse = new THREE.Vector2();
+
+  const tooltip    = document.getElementById('tooltip');
+  const ttTitle    = document.getElementById('tt-title');
+  const ttMeta     = document.getElementById('tt-meta');
+  const ttCluster  = document.getElementById('tt-cluster');
+
+  let allPoints = [];
+
   fetch('data/news_map.json')
     .then(r => r.json())
     .then(data => {
       window.newsData = data;
+      allPoints = data.points;
       drawPoints(data.points);
       centerCamera();
     });
@@ -117,6 +162,33 @@
     controls.update();
     window.sceneCenter = center;
   }
+
+  // hover detection
+  window.addEventListener('mousemove', e => {
+    mouse.x =  (e.clientX / window.innerWidth)  * 2 - 1;
+    mouse.y = -(e.clientY / window.innerHeight) * 2 + 1;
+
+    raycaster.setFromCamera(mouse, camera);
+    const hits = raycaster.intersectObject(window.pointCloud);
+
+    if (hits.length > 0) {
+      const idx = hits[0].index;
+      const p   = allPoints[idx];
+      const clusterLabel = p.cluster === -1
+        ? 'noise'
+        : window.newsData.clusters[p.cluster];
+
+      ttTitle.textContent   = p.title;
+      ttMeta.textContent    = `${p.date.slice(0, 10)} — ${p.source}`;
+      ttCluster.textContent = clusterLabel;
+
+      tooltip.style.display = 'block';
+      tooltip.style.left    = (e.clientX + 14) + 'px';
+      tooltip.style.top     = (e.clientY - 10) + 'px';
+    } else {
+      tooltip.style.display = 'none';
+    }
+  });
 
   function animate() {
     requestAnimationFrame(animate);
