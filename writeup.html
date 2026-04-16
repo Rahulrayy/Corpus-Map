@@ -1,0 +1,372 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Newsphere — Write-up</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background: #f9f9f7;
+      color: #1a1a1a;
+      line-height: 1.8;
+    }
+
+    nav {
+      position: fixed;
+      top: 0; left: 0; right: 0;
+      height: 48px;
+      background: white;
+      border-bottom: 0.5px solid #e0e0e0;
+      display: flex;
+      align-items: center;
+      padding: 0 32px;
+      gap: 24px;
+      z-index: 100;
+    }
+    .nav-brand {
+      font-size: 14px;
+      font-weight: 500;
+      color: #1a1a1a;
+      text-decoration: none;
+    }
+    .nav-links {
+      display: flex;
+      gap: 20px;
+      margin-left: auto;
+    }
+    .nav-links a {
+      font-size: 13px;
+      color: #888;
+      text-decoration: none;
+    }
+    .nav-links a:hover  { color: #1a1a1a; }
+    .nav-links a.active { color: #1a1a1a; font-weight: 500; }
+
+    .page {
+      max-width: 680px;
+      margin: 0 auto;
+      padding: 96px 24px 80px;
+    }
+
+    .meta {
+      font-size: 13px;
+      color: #aaa;
+      margin-bottom: 12px;
+    }
+
+    h1 {
+      font-size: 28px;
+      font-weight: 500;
+      line-height: 1.3;
+      margin-bottom: 16px;
+      color: #1a1a1a;
+    }
+
+    .abstract {
+      font-size: 15px;
+      color: #555;
+      border-left: 2px solid #e0e0e0;
+      padding-left: 16px;
+      margin-bottom: 48px;
+      line-height: 1.8;
+    }
+
+    h2 {
+      font-size: 18px;
+      font-weight: 500;
+      margin-top: 48px;
+      margin-bottom: 14px;
+      color: #1a1a1a;
+    }
+
+    p {
+      font-size: 15px;
+      color: #333;
+      margin-bottom: 16px;
+    }
+
+    code {
+      font-family: 'SF Mono', 'Fira Code', monospace;
+      font-size: 13px;
+      background: #f0f0ee;
+      padding: 2px 6px;
+      border-radius: 4px;
+      color: #333;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 14px;
+      margin: 24px 0;
+    }
+    thead tr {
+      border-bottom: 1px solid #e0e0e0;
+    }
+    th {
+      text-align: left;
+      padding: 8px 12px;
+      font-weight: 500;
+      color: #888;
+      font-size: 12px;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
+    td {
+      padding: 10px 12px;
+      color: #333;
+      border-bottom: 0.5px solid #f0f0f0;
+    }
+    tr.highlight td {
+      font-weight: 500;
+      color: #1a1a1a;
+      background: #f3f3f0;
+    }
+    .dot {
+      display: inline-block;
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      margin-right: 8px;
+      vertical-align: middle;
+    }
+    .callout {
+      background: white;
+      border: 0.5px solid #e0e0e0;
+      border-radius: 10px;
+      padding: 16px 20px;
+      margin: 24px 0;
+      font-size: 14px;
+      color: #555;
+      line-height: 1.7;
+    }
+    .vis-link {
+      display: inline-block;
+      margin-top: 8px;
+      font-size: 13px;
+      color: #4e79a7;
+      text-decoration: none;
+      border: 0.5px solid #4e79a7;
+      border-radius: 6px;
+      padding: 6px 14px;
+    }
+    .vis-link:hover {
+      background: #4e79a7;
+      color: white;
+    }
+    .footer {
+      margin-top: 64px;
+      padding-top: 24px;
+      border-top: 0.5px solid #e0e0e0;
+      font-size: 13px;
+      color: #aaa;
+    }
+  </style>
+</head>
+<body>
+
+  <nav>
+    <a class="nav-brand" href="index.html">Newsphere</a>
+    <div class="nav-links">
+      <a href="index.html">visualization</a>
+      <a href="writeup.html" class="active">write-up</a>
+    </div>
+  </nav>
+
+  <div class="page">
+
+    <div class="meta">MSc project &nbsp;·&nbsp; unsupervised NLP &nbsp;·&nbsp; 2025</div>
+    <h1>Mapping the news: unsupervised topic discovery across 7,000 articles</h1>
+
+    <div class="abstract">
+      This project builds an interactive 3D semantic map of 7,000 news articles from 2018,
+      using sentence embeddings, UMAP dimensionality reduction, and HDBSCAN clustering to
+      surface latent topic structure without any labelled data. The result is a fully
+      static visualization deployed on GitHub Pages where users can explore clusters,
+      filter by date, and read source articles.
+    </div>
+
+    <a class="vis-link" href="index.html">open the visualization</a>
+
+    <h2>1. introduction</h2>
+    <p>
+      Keyword search treats words as discrete symbols, which means that two articles
+      about the same event can fail to match if they use different vocabulary. Semantic
+      search addresses this by operating in a learned embedding space where proximity
+      reflects meaning rather than surface form. This project asks whether that same
+      embedding space, when applied to a large news corpus, naturally organises itself
+      into interpretable topics without any supervision.
+    </p>
+    <p>
+      The short answer is yes. Without providing a single label, the pipeline recovers
+      coherent clusters corresponding to events like the Cambridge Analytica scandal,
+      the US-China trade war, the Stanley Cup playoffs, and 24 other distinct topics,
+      all from the geometric structure of the embeddings alone.
+    </p>
+
+    <h2>2. data</h2>
+    <p>
+      Articles were drawn from the CC-News dataset via HuggingFace, filtered to the
+      first half of 2018, and cleaned to remove duplicates and near-empty titles.
+      The final corpus contains 7,000 articles spanning January to July 2018,
+      sourced from a wide range of English-language publishers. Only article titles
+      were used for embedding rather than full text. This was a deliberate choice:
+      titles are more consistent in length and register across sources, and in practice
+      they carry enough semantic signal to separate topics cleanly.
+    </p>
+
+    <h2>3. method</h2>
+    <p>
+      Each title was embedded using <code>all-MiniLM-L6-v2</code> from the
+      sentence-transformers library, producing a 384-dimensional vector per article.
+      These embeddings were then reduced to three dimensions using UMAP with
+      cosine distance, <code>n_neighbors=20</code>, and <code>min_dist=0.1</code>.
+      Three dimensions were chosen over the more common two because the additional
+      axis preserves more of the original embedding structure, as confirmed by the
+      trustworthiness scores in Section 4.
+    </p>
+    <p>
+      Clustering was performed using HDBSCAN with <code>min_cluster_size=60</code>
+      and <code>min_samples=10</code>. HDBSCAN was preferred over k-means for two
+      reasons: it does not require specifying the number of clusters in advance, and
+      it explicitly models noise points rather than forcing every article into a
+      cluster. Points assigned label -1 are treated as noise and rendered as grey
+      dots in the visualization.
+    </p>
+    <p>
+      Cluster labels were generated automatically using TF-IDF over the concatenated
+      titles within each cluster, extracting the top three most distinctive unigrams
+      and bigrams relative to the rest of the corpus.
+    </p>
+
+    <h2>4. results</h2>
+
+    <p>The pipeline produced 27 clusters from 7,000 articles, with 3,525 points
+    (50.4%) assigned as noise. Selected clusters are shown below.</p>
+
+    <table>
+      <thead>
+        <tr>
+          <th>cluster</th>
+          <th>top terms</th>
+          <th>size</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><span class="dot" style="background:#4e79a7"></span>01</td>
+          <td>facebook | cambridge | analytica</td>
+          <td>84</td>
+        </tr>
+        <tr>
+          <td><span class="dot" style="background:#f28e2b"></span>02</td>
+          <td>korea | north korea | korean</td>
+          <td>61</td>
+        </tr>
+        <tr>
+          <td><span class="dot" style="background:#e15759"></span>13</td>
+          <td>crash | driving | self driving</td>
+          <td>101</td>
+        </tr>
+        <tr>
+          <td><span class="dot" style="background:#76b7b2"></span>14</td>
+          <td>china | tariffs | news</td>
+          <td>95</td>
+        </tr>
+        <tr>
+          <td><span class="dot" style="background:#59a14f"></span>26</td>
+          <td>infinity | infinity war | netflix</td>
+          <td>108</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <p>Evaluation used three metrics. DBCV measures cluster cohesion and is
+    designed specifically for density-based methods. Trustworthiness measures
+    how well the low-dimensional projection preserves local neighbourhood
+    structure from the original 384-dimensional space.</p>
+
+    <table>
+      <thead>
+        <tr>
+          <th>method</th>
+          <th>trustworthiness</th>
+          <th>DBCV</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr class="highlight">
+          <td>UMAP 3D + HDBSCAN (this project)</td>
+          <td>0.9065</td>
+          <td>0.1994</td>
+        </tr>
+        <tr>
+          <td>t-SNE 2D + HDBSCAN</td>
+          <td>0.8727</td>
+          <td>n/a</td>
+        </tr>
+        <tr>
+          <td>UMAP 2D + HDBSCAN</td>
+          <td>0.8511</td>
+          <td>n/a</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <div class="callout">
+      UMAP 3D achieves the highest trustworthiness score of the three methods tested,
+      suggesting that the extra dimension meaningfully captures neighbourhood structure
+      that is lost in 2D projections. The t-SNE and UMAP 2D scores were computed on
+      a 2,000-point subsample for computational reasons, so the comparison is
+      indicative rather than exact.
+    </div>
+
+    <h2>5. discussion</h2>
+    <p>
+      The most coherent clusters correspond to events with a distinctive and consistent
+      vocabulary, such as the Cambridge Analytica scandal (cluster 01) and the
+      North Korea nuclear negotiations (cluster 02). Clusters around broader or more
+      diffuse topics, such as general crime reporting (cluster 16), tend to be larger
+      and produce less informative TF-IDF labels, which reflects a genuine limitation
+      of title-only embedding rather than a failure of the clustering method.
+    </p>
+    <p>
+      The noise rate of 50.4% is higher than ideal but not surprising for a general
+      news corpus. Many articles cover one-off events that do not belong to any
+      recurring topic, and HDBSCAN correctly identifies these as noise rather than
+      forcing them into a cluster. This is one of the key advantages of the method
+      over k-means.
+    </p>
+    <p>
+      One limitation worth noting is that the TF-IDF labels are sometimes dominated
+      by source-specific terms rather than topic terms. Cluster 21, labelled
+      "di | dan | yang", appears to consist largely of articles from Chinese-language
+      sources translated into English, which suggests that source domain can be a
+      stronger signal than topic in some cases.
+    </p>
+    <p>
+      Future work could extend this to a larger corpus spanning multiple years,
+      which would allow tracking of how topics evolve over time. Replacing
+      title-only embedding with full article embedding using a larger model such as
+      <code>all-mpnet-base-v2</code> would likely improve cluster quality, at the
+      cost of higher compute.
+    </p>
+
+    <h2>6. references</h2>
+    <p>Reimers, N. and Gurevych, I. (2019). Sentence-BERT: sentence embeddings using siamese BERT networks. EMNLP 2019.</p>
+    <p>McInnes, L., Healy, J. and Melville, J. (2018). UMAP: uniform manifold approximation and projection for dimension reduction. arXiv:1802.03426.</p>
+    <p>McInnes, L., Healy, J. and Astels, S. (2017). HDBSCAN: hierarchical density based clustering. Journal of Open Source Software.</p>
+    <p>Mcinnes, L. and Healy, J. (2017). Density-based clustering validation. SDM 2017.</p>
+
+    <div class="footer">
+      built with sentence-transformers, UMAP, HDBSCAN, and Three.js &nbsp;·&nbsp;
+      data from CC-News via HuggingFace &nbsp;·&nbsp;
+      <a href="index.html" style="color: #aaa;">back to visualization</a>
+    </div>
+
+  </div>
+
+</body>
+</html>
