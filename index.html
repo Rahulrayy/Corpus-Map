@@ -6,21 +6,18 @@
   <title>Newsphere</title>
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
-
     body {
       font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
       background: #f9f9f7;
       color: #1a1a1a;
       overflow: hidden;
     }
-
     #canvas-container {
       position: fixed;
       top: 0; left: 0;
       width: 100vw;
       height: 100vh;
     }
-
     #ui-overlay {
       position: fixed;
       top: 0; left: 0;
@@ -31,11 +28,91 @@
   </style>
 </head>
 <body>
-
   <div id="canvas-container"></div>
   <div id="ui-overlay"></div>
-
   <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+  const scene = new THREE.Scene();
+  scene.background = new THREE.Color(0xf9f9f7);
 
+  const camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 1000);
+  camera.position.set(0, 0, 20);
+
+  const renderer = new THREE.WebGLRenderer({ antialias: true });
+  renderer.setPixelRatio(window.devicePixelRatio);
+  renderer.setSize(window.innerWidth, window.innerHeight);
+  document.getElementById('canvas-container').appendChild(renderer.domElement);
+
+  window.addEventListener('resize', () => {
+    camera.aspect = window.innerWidth / window.innerHeight;
+    camera.updateProjectionMatrix();
+    renderer.setSize(window.innerWidth, window.innerHeight);
+  });
+
+  const CLUSTER_COLORS = [
+    '#4e79a7','#f28e2b','#e15759','#76b7b2','#59a14f',
+    '#edc948','#b07aa1','#ff9da7','#9c755f','#bab0ac',
+    '#1f77b4','#ff7f0e','#2ca02c','#d62728','#9467bd',
+    '#8c564b','#e377c2','#7f7f7f','#bcbd22','#17becf',
+    '#aec7e8','#ffbb78','#98df8a','#ff9896','#c5b0d5',
+    '#c49c94','#f7b6d2'
+  ];
+  const NOISE_COLOR = '#cccccc';
+
+  fetch('data/news_map.json')
+    .then(r => r.json())
+    .then(data => {
+      window.newsData = data;
+      drawPoints(data.points);
+      centerCamera();
+    });
+
+  function drawPoints(points) {
+    const geometry  = new THREE.BufferGeometry();
+    const positions = new Float32Array(points.length * 3);
+    const colors    = new Float32Array(points.length * 3);
+
+    points.forEach((p, i) => {
+      positions[i * 3]     = p.x;
+      positions[i * 3 + 1] = p.y;
+      positions[i * 3 + 2] = p.z;
+
+      const hex = p.cluster === -1 ? NOISE_COLOR : CLUSTER_COLORS[p.cluster % CLUSTER_COLORS.length];
+      const c   = new THREE.Color(hex);
+      colors[i * 3]     = c.r;
+      colors[i * 3 + 1] = c.g;
+      colors[i * 3 + 2] = c.b;
+    });
+
+    geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+    geometry.setAttribute('color',    new THREE.BufferAttribute(colors, 3));
+
+    const material = new THREE.PointsMaterial({
+      size: 0.12,
+      vertexColors: true,
+      sizeAttenuation: true,
+    });
+
+    const pointCloud = new THREE.Points(geometry, material);
+    scene.add(pointCloud);
+    window.pointCloud = pointCloud;
+  }
+
+  function centerCamera() {
+    const box    = new THREE.Box3().setFromObject(window.pointCloud);
+    const center = box.getCenter(new THREE.Vector3());
+    const size   = box.getSize(new THREE.Vector3());
+    const dist   = Math.max(size.x, size.y, size.z) * 1.5;
+    camera.position.set(center.x, center.y, center.z + dist);
+    camera.lookAt(center);
+    window.sceneCenter = center;
+  }
+
+  function animate() {
+    requestAnimationFrame(animate);
+    renderer.render(scene, camera);
+  }
+  animate();
+</script>
 </body>
 </html>
