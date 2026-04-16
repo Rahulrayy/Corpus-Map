@@ -72,29 +72,11 @@
       cursor: pointer;
       transition: background 0.15s;
     }
-    .legend-item:hover {
-      background: #f3f3f0;
-    }
-    .legend-item.active {
-      background: #f3f3f0;
-    }
-    .legend-dot {
-      width: 10px;
-      height: 10px;
-      border-radius: 50%;
-      flex-shrink: 0;
-    }
-    .legend-label {
-      font-size: 12px;
-      color: #333;
-      line-height: 1.4;
-    }
-    .legend-count {
-      font-size: 11px;
-      color: #aaa;
-      margin-left: auto;
-      flex-shrink: 0;
-    }
+    .legend-item:hover  { background: #f3f3f0; }
+    .legend-item.active { background: #f3f3f0; }
+    .legend-dot   { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+    .legend-label { font-size: 12px; color: #333; line-height: 1.4; }
+    .legend-count { font-size: 11px; color: #aaa; margin-left: auto; flex-shrink: 0; }
     #legend-reset {
       margin-top: 10px;
       width: 100%;
@@ -106,13 +88,50 @@
       color: #555;
       cursor: pointer;
     }
-    #legend-reset:hover {
-      background: #f3f3f0;
-    }
-
-    #legend::-webkit-scrollbar { width: 4px; }
+    #legend-reset:hover { background: #f3f3f0; }
+    #legend::-webkit-scrollbar       { width: 4px; }
     #legend::-webkit-scrollbar-track { background: transparent; }
     #legend::-webkit-scrollbar-thumb { background: #ddd; border-radius: 4px; }
+
+    #timeline {
+      position: fixed;
+      bottom: 30px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: white;
+      border: 0.5px solid #e0e0e0;
+      border-radius: 10px;
+      padding: 14px 20px;
+      width: 520px;
+      pointer-events: all;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+    }
+    #timeline h3 {
+      font-size: 11px;
+      font-weight: 500;
+      color: #999;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      margin-bottom: 10px;
+      text-align: center;
+    }
+    #timeline-slider {
+      width: 100%;
+      accent-color: #4e79a7;
+    }
+    #timeline-labels {
+      display: flex;
+      justify-content: space-between;
+      font-size: 11px;
+      color: #aaa;
+      margin-top: 6px;
+    }
+    #timeline-current {
+      text-align: center;
+      font-size: 12px;
+      color: #555;
+      margin-top: 4px;
+    }
   </style>
 </head>
 <body>
@@ -129,6 +148,16 @@
     <h3>topics</h3>
     <div id="legend-items"></div>
     <button id="legend-reset">show all</button>
+  </div>
+
+  <div id="timeline">
+    <h3>filter by date</h3>
+    <input type="range" id="timeline-slider" min="1" max="365" value="365" step="1" />
+    <div id="timeline-labels">
+      <span>Jan 2018</span>
+      <span>Jul 2018</span>
+    </div>
+    <div id="timeline-current">showing all dates</div>
   </div>
 
   <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
@@ -176,9 +205,9 @@
   const ttMeta    = document.getElementById('tt-meta');
   const ttCluster = document.getElementById('tt-cluster');
 
-  let allPoints       = [];
-  let activeCluster   = null;
-  let originalColors  = null;
+  let allPoints     = [];
+  let activeCluster = null;
+  let maxDay        = 365;
 
   function makeCircleTexture() {
     const size   = 64;
@@ -188,9 +217,9 @@
     const ctx  = canvas.getContext('2d');
     const half = size / 2;
     const gradient = ctx.createRadialGradient(half, half, 0, half, half, half);
-    gradient.addColorStop(0.0, 'rgba(255,255,255,1)');
-    gradient.addColorStop(0.7, 'rgba(255,255,255,1)');
-    gradient.addColorStop(1.0, 'rgba(255,255,255,0)');
+    gradient.addColorStop(0.0,  'rgba(255,255,255,1)');
+    gradient.addColorStop(0.85, 'rgba(255,255,255,1)');
+    gradient.addColorStop(1.0,  'rgba(255,255,255,0)');
     ctx.fillStyle = gradient;
     ctx.beginPath();
     ctx.arc(half, half, half, 0, Math.PI * 2);
@@ -203,9 +232,13 @@
     .then(data => {
       window.newsData = data;
       allPoints = data.points;
+      maxDay    = Math.max(...allPoints.map(p => p.day));
+      document.getElementById('timeline-slider').max = maxDay;
+      document.getElementById('timeline-slider').value = maxDay;
       drawPoints(data.points);
       centerCamera();
       buildLegend(data);
+      buildTimeline();
     });
 
   function drawPoints(points) {
@@ -241,9 +274,6 @@
     const pointCloud = new THREE.Points(geometry, material);
     scene.add(pointCloud);
     window.pointCloud = pointCloud;
-
-    // store original colors for reset
-    originalColors = colors.slice();
   }
 
   function centerCamera() {
@@ -260,9 +290,7 @@
 
   function buildLegend(data) {
     const container = document.getElementById('legend-items');
-
-    // count articles per cluster
-    const counts = {};
+    const counts    = {};
     allPoints.forEach(p => {
       if (p.cluster === -1) return;
       counts[p.cluster] = (counts[p.cluster] || 0) + 1;
@@ -270,32 +298,74 @@
 
     Object.entries(data.clusters).forEach(([id, label]) => {
       if (parseInt(id) === -1) return;
-
       const item  = document.createElement('div');
-      item.className   = 'legend-item';
+      item.className       = 'legend-item';
       item.dataset.cluster = id;
 
       const dot   = document.createElement('div');
-      dot.className    = 'legend-dot';
+      dot.className        = 'legend-dot';
       dot.style.background = CLUSTER_COLORS[parseInt(id) % CLUSTER_COLORS.length];
 
       const lbl   = document.createElement('span');
-      lbl.className    = 'legend-label';
-      lbl.textContent  = label;
+      lbl.className   = 'legend-label';
+      lbl.textContent = label;
 
       const count = document.createElement('span');
-      count.className  = 'legend-count';
+      count.className   = 'legend-count';
       count.textContent = counts[id] || 0;
 
       item.appendChild(dot);
       item.appendChild(lbl);
       item.appendChild(count);
-
       item.addEventListener('click', () => highlightCluster(parseInt(id), item));
       container.appendChild(item);
     });
 
     document.getElementById('legend-reset').addEventListener('click', resetHighlight);
+  }
+
+  function buildTimeline() {
+    const slider  = document.getElementById('timeline-slider');
+    const current = document.getElementById('timeline-current');
+
+    slider.addEventListener('input', () => {
+      const day      = parseInt(slider.value);
+      const date     = dayToDate(day);
+      const dateStr  = date.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
+
+      if (day === maxDay) {
+        current.textContent = 'showing all dates';
+      } else {
+        current.textContent = `up to ${dateStr}`;
+      }
+
+      applyFilters(day, activeCluster);
+    });
+  }
+
+  function dayToDate(day) {
+    const d = new Date(2018, 0, 1);
+    d.setDate(d.getDate() + day - 1);
+    return d;
+  }
+
+  function applyFilters(maxDayFilter, clusterId) {
+    const colors = window.pointCloud.geometry.attributes.color;
+
+    allPoints.forEach((p, i) => {
+      const inDate    = p.day <= maxDayFilter;
+      const inCluster = clusterId === null || p.cluster === clusterId;
+
+      if (inDate && inCluster) {
+        const hex = p.cluster === -1 ? NOISE_COLOR : CLUSTER_COLORS[p.cluster % CLUSTER_COLORS.length];
+        const c   = new THREE.Color(hex);
+        colors.setXYZ(i, c.r, c.g, c.b);
+      } else {
+        colors.setXYZ(i, 0.88, 0.88, 0.88);
+      }
+    });
+
+    colors.needsUpdate = true;
   }
 
   function highlightCluster(clusterId, itemEl) {
@@ -304,33 +374,17 @@
       return;
     }
     activeCluster = clusterId;
-
     document.querySelectorAll('.legend-item').forEach(el => el.classList.remove('active'));
     itemEl.classList.add('active');
-
-    const colors = window.pointCloud.geometry.attributes.color;
-    allPoints.forEach((p, i) => {
-      if (p.cluster === clusterId) {
-        const hex = CLUSTER_COLORS[clusterId % CLUSTER_COLORS.length];
-        const c   = new THREE.Color(hex);
-        colors.setXYZ(i, c.r, c.g, c.b);
-      } else {
-        colors.setXYZ(i, 0.88, 0.88, 0.88);
-      }
-    });
-    colors.needsUpdate = true;
+    const day = parseInt(document.getElementById('timeline-slider').value);
+    applyFilters(day, activeCluster);
   }
 
   function resetHighlight() {
     activeCluster = null;
     document.querySelectorAll('.legend-item').forEach(el => el.classList.remove('active'));
-    const colors = window.pointCloud.geometry.attributes.color;
-    allPoints.forEach((p, i) => {
-      const hex = p.cluster === -1 ? NOISE_COLOR : CLUSTER_COLORS[p.cluster % CLUSTER_COLORS.length];
-      const c   = new THREE.Color(hex);
-      colors.setXYZ(i, c.r, c.g, c.b);
-    });
-    colors.needsUpdate = true;
+    const day = parseInt(document.getElementById('timeline-slider').value);
+    applyFilters(day, null);
   }
 
   window.addEventListener('mousemove', e => {
