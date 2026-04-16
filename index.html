@@ -56,6 +56,36 @@
     }
     .nav-links a:hover  { color: #1a1a1a; }
     .nav-links a.active { color: #1a1a1a; font-weight: 500; }
+
+    #loader {
+      position: fixed;
+      top: 0; left: 0;
+      width: 100vw;
+      height: 100vh;
+      background: #f9f9f7;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 16px;
+      z-index: 200;
+    }
+    #loader-spinner {
+      width: 32px;
+      height: 32px;
+      border: 2px solid #e0e0e0;
+      border-top-color: #4e79a7;
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+    }
+    #loader-text {
+      font-size: 13px;
+      color: #aaa;
+    }
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+
     #disclaimer {
       position: fixed;
       top: 64px;
@@ -235,11 +265,16 @@
 </head>
 <body>
 
+  <div id="loader">
+    <div id="loader-spinner"></div>
+    <div id="loader-text">loading articles...</div>
+  </div>
+
   <nav>
     <a class="nav-brand" href="index.html">Newsphere</a>
     <div class="nav-links">
-      <a href="index.html" class="active">visualization</a>
-      <a href="writeup.html">write-up</a>
+      <a href="index.html" class="active">Visualization</a>
+      <a href="writeup.html">Write-up</a>
     </div>
   </nav>
 
@@ -247,7 +282,7 @@
   <div id="ui-overlay"></div>
 
   <div id="disclaimer">
-    articles are from 2018 -- some links may no longer be active
+    Articles are from 2018 -- some links may no longer be active
   </div>
 
   <div id="tooltip">
@@ -266,19 +301,19 @@
   </div>
 
   <div id="legend">
-    <h3>topics</h3>
+    <h3>Topics</h3>
     <div id="legend-items"></div>
-    <button id="legend-reset">show all</button>
+    <button id="legend-reset">Show all</button>
   </div>
 
   <div id="timeline">
-    <h3>filter by date</h3>
+    <h3>Filter by date</h3>
     <input type="range" id="timeline-slider" min="1" max="365" value="365" step="1" />
     <div id="timeline-labels">
       <span>Jan 2018</span>
       <span>Jul 2018</span>
     </div>
-    <div id="timeline-current">showing all dates</div>
+    <div id="timeline-current">Showing all dates</div>
   </div>
 
   <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
@@ -366,6 +401,7 @@
       centerCamera();
       buildLegend(data);
       buildTimeline();
+      document.getElementById('loader').style.display = 'none';
     });
 
   function drawPoints(points) {
@@ -423,8 +459,12 @@
       counts[p.cluster] = (counts[p.cluster] || 0) + 1;
     });
 
-    Object.entries(data.clusters).forEach(([id, label]) => {
-      if (parseInt(id) === -1) return;
+    // build all 27 clusters -- sorted by size descending
+    const sorted = Object.entries(data.clusters)
+      .filter(([id]) => parseInt(id) !== -1)
+      .sort((a, b) => (counts[b[0]] || 0) - (counts[a[0]] || 0));
+
+    sorted.forEach(([id, label]) => {
       const item  = document.createElement('div');
       item.className       = 'legend-item';
       item.dataset.cluster = id;
@@ -465,7 +505,7 @@
       const day     = parseInt(slider.value);
       const date    = dayToDate(day);
       const dateStr = date.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
-      current.textContent = day === maxDay ? 'showing all dates' : `up to ${dateStr}`;
+      current.textContent = day === maxDay ? 'Showing all dates' : `Up to ${dateStr}`;
       applyFilters(day, activeCluster);
     });
   }
@@ -516,11 +556,10 @@
     const color    = CLUSTER_COLORS[clusterId % CLUSTER_COLORS.length];
     const articles = allPoints
       .filter(p => p.cluster === clusterId)
-      .sort((a, b) => new Date(a.date) - new Date(b.date))
-      .slice(0, 8);
+      .sort((a, b) => new Date(a.date) - new Date(b.date));
 
     sidebarTitle.innerHTML  = `<span style="background:${color}; display:inline-block; width:8px; height:8px; border-radius:50%; margin-right:6px; vertical-align:middle;"></span>${label}`;
-    sidebarMeta.textContent = `${articles.length} of ${allPoints.filter(p => p.cluster === clusterId).length} articles`;
+    sidebarMeta.textContent = `${articles.length} articles`;
 
     sidebarArticles.innerHTML = '';
     articles.forEach(p => {
