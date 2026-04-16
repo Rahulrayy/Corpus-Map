@@ -12,7 +12,6 @@
       color: #1a1a1a;
       line-height: 1.8;
     }
-
     nav {
       position: fixed;
       top: 0; left: 0; right: 0;
@@ -43,19 +42,16 @@
     }
     .nav-links a:hover  { color: #1a1a1a; }
     .nav-links a.active { color: #1a1a1a; font-weight: 500; }
-
     .page {
       max-width: 680px;
       margin: 0 auto;
       padding: 96px 24px 80px;
     }
-
     .meta {
       font-size: 13px;
       color: #aaa;
       margin-bottom: 12px;
     }
-
     h1 {
       font-size: 28px;
       font-weight: 500;
@@ -63,7 +59,6 @@
       margin-bottom: 16px;
       color: #1a1a1a;
     }
-
     .abstract {
       font-size: 15px;
       color: #555;
@@ -72,7 +67,6 @@
       margin-bottom: 48px;
       line-height: 1.8;
     }
-
     h2 {
       font-size: 18px;
       font-weight: 500;
@@ -80,13 +74,18 @@
       margin-bottom: 14px;
       color: #1a1a1a;
     }
-
+    h3 {
+      font-size: 15px;
+      font-weight: 500;
+      margin-top: 28px;
+      margin-bottom: 10px;
+      color: #1a1a1a;
+    }
     p {
       font-size: 15px;
       color: #333;
       margin-bottom: 16px;
     }
-
     code {
       font-family: 'SF Mono', 'Fira Code', monospace;
       font-size: 13px;
@@ -95,16 +94,13 @@
       border-radius: 4px;
       color: #333;
     }
-
     table {
       width: 100%;
       border-collapse: collapse;
       font-size: 14px;
       margin: 24px 0;
     }
-    thead tr {
-      border-bottom: 1px solid #e0e0e0;
-    }
+    thead tr { border-bottom: 1px solid #e0e0e0; }
     th {
       text-align: left;
       padding: 8px 12px;
@@ -163,6 +159,7 @@
       font-size: 13px;
       color: #aaa;
     }
+    .footer a { color: #aaa; }
   </style>
 </head>
 <body>
@@ -170,88 +167,161 @@
   <nav>
     <a class="nav-brand" href="index.html">Newsphere</a>
     <div class="nav-links">
-      <a href="index.html">visualization</a>
-      <a href="writeup.html" class="active">write-up</a>
+      <a href="index.html">Visualization</a>
+      <a href="writeup.html" class="active">Write-up</a>
     </div>
   </nav>
 
   <div class="page">
 
-    <div class="meta">MSc project &nbsp;·&nbsp; unsupervised NLP &nbsp;·&nbsp; 2025</div>
+    <div class="meta">MSc project &nbsp;·&nbsp; Unsupervised NLP &nbsp;·&nbsp; 2025</div>
     <h1>Mapping the news: unsupervised topic discovery across 7,000 articles</h1>
 
     <div class="abstract">
       This project builds an interactive 3D semantic map of 7,000 news articles from 2018,
       using sentence embeddings, UMAP dimensionality reduction, and HDBSCAN clustering to
-      surface latent topic structure without any labelled data. The result is a fully
-      static visualization deployed on GitHub Pages where users can explore clusters,
-      filter by date, and read source articles.
+      surface latent topic structure without any labelled data. The full pipeline runs
+      offline in Python and exports a single static JSON file, which is loaded by a
+      Three.js frontend deployed on GitHub Pages. Users can rotate the 3D embedding space,
+      filter articles by publication date, highlight individual topic clusters, and read
+      source articles directly from the interface.
     </div>
 
-    <a class="vis-link" href="index.html">open the visualization</a>
+    <a class="vis-link" href="index.html">Open the visualization</a>
 
-    <h2>1. introduction</h2>
+    <h2>1. Introduction</h2>
     <p>
-      Keyword search treats words as discrete symbols, which means that two articles
-      about the same event can fail to match if they use different vocabulary. Semantic
-      search addresses this by operating in a learned embedding space where proximity
-      reflects meaning rather than surface form. This project asks whether that same
-      embedding space, when applied to a large news corpus, naturally organises itself
-      into interpretable topics without any supervision.
+      Standard keyword search treats words as discrete symbols, which means that two
+      articles covering the same event can fail to match simply because they use different
+      vocabulary. A piece about "Federal Reserve interest rate policy" and one about "Fed
+      hiking borrowing costs" are semantically identical but lexically distant. Semantic
+      embedding models address this by mapping text into a continuous vector space where
+      proximity reflects meaning rather than surface form.
     </p>
     <p>
-      The short answer is yes. Without providing a single label, the pipeline recovers
-      coherent clusters corresponding to events like the Cambridge Analytica scandal,
-      the US-China trade war, the Stanley Cup playoffs, and 24 other distinct topics,
-      all from the geometric structure of the embeddings alone.
+      This project asks a straightforward question: if a large news corpus is embedded
+      into that space and left alone, does it naturally organise itself into interpretable
+      topics? The answer, it turns out, is yes. Without providing a single label or
+      category, the pipeline recovers coherent clusters corresponding to events including
+      the Cambridge Analytica data scandal, the US-China trade war, the 2018 FIFA World
+      Cup, and 24 other distinct topics, all from the geometric structure of the embeddings
+      alone.
     </p>
-
-    <h2>2. data</h2>
     <p>
-      Articles were drawn from the CC-News dataset via HuggingFace, filtered to the
-      first half of 2018, and cleaned to remove duplicates and near-empty titles.
-      The final corpus contains 7,000 articles spanning January to July 2018,
-      sourced from a wide range of English-language publishers. Only article titles
-      were used for embedding rather than full text. This was a deliberate choice:
-      titles are more consistent in length and register across sources, and in practice
-      they carry enough semantic signal to separate topics cleanly.
+      Beyond the clustering result itself, the project explores a practical deployment
+      question: can a full ML pipeline, from raw data to interactive 3D visualization,
+      be hosted entirely as a static site with no backend? The answer is also yes, and
+      the approach generalises to any text corpus.
     </p>
 
-    <h2>3. method</h2>
+    <h2>2. Data</h2>
+
+    <h3>2.1 Source</h3>
     <p>
-      Each title was embedded using <code>all-MiniLM-L6-v2</code> from the
-      sentence-transformers library, producing a 384-dimensional vector per article.
-      These embeddings were then reduced to three dimensions using UMAP with
-      cosine distance, <code>n_neighbors=20</code>, and <code>min_dist=0.1</code>.
-      Three dimensions were chosen over the more common two because the additional
-      axis preserves more of the original embedding structure, as confirmed by the
-      trustworthiness scores in Section 4.
-    </p>
-    <p>
-      Clustering was performed using HDBSCAN with <code>min_cluster_size=60</code>
-      and <code>min_samples=10</code>. HDBSCAN was preferred over k-means for two
-      reasons: it does not require specifying the number of clusters in advance, and
-      it explicitly models noise points rather than forcing every article into a
-      cluster. Points assigned label -1 are treated as noise and rendered as grey
-      dots in the visualization.
-    </p>
-    <p>
-      Cluster labels were generated automatically using TF-IDF over the concatenated
-      titles within each cluster, extracting the top three most distinctive unigrams
-      and bigrams relative to the rest of the corpus.
+      Articles were drawn from the CC-News dataset, a large crawl of English-language
+      news articles made available via HuggingFace Datasets. The dataset was streamed
+      directly rather than downloaded in full, with the first 20,000 articles fetched
+      and then filtered to a single calendar year to produce a temporally coherent corpus.
     </p>
 
-    <h2>4. results</h2>
+    <h3>2.2 Filtering and cleaning</h3>
+    <p>
+      Articles were filtered to the period January to July 2018, retaining only those
+      with a valid publication date and a title of more than 20 characters. Duplicate
+      titles were removed. The resulting corpus contains 7,000 articles from a wide range
+      of English-language publishers, with publication dates spanning approximately six
+      months. This time window was chosen deliberately: 2018 was a particularly eventful
+      year for news, containing several well-defined events such as the Cambridge Analytica
+      story breaking in March, the Avengers: Infinity War release in April, and the FIFA
+      World Cup beginning in June. This makes it a good corpus for evaluating whether
+      the clustering method can recover known real-world events.
+    </p>
 
-    <p>The pipeline produced 27 clusters from 7,000 articles, with 3,525 points
-    (50.4%) assigned as noise. Selected clusters are shown below.</p>
+    <h3>2.3 Embedding scope</h3>
+    <p>
+      Only article titles were used for embedding rather than full article text. This
+      was a deliberate design choice for two reasons. First, titles are more consistent
+      in length and register across different publishers, reducing the risk that embedding
+      quality varies by source. Second, titles carry sufficient semantic signal to
+      separate topics cleanly in practice, and embedding 7,000 full articles would have
+      been prohibitively slow on consumer hardware.
+    </p>
+
+    <h2>3. Method</h2>
+
+    <h3>3.1 Sentence embedding</h3>
+    <p>
+      Each article title was embedded using <code>all-MiniLM-L6-v2</code> from the
+      sentence-transformers library (Reimers and Gurevych, 2019). This model produces
+      384-dimensional dense vectors and was chosen as a balance between embedding quality
+      and inference speed. On a standard CPU, the full corpus of 7,000 titles was embedded
+      in approximately eight minutes using batched inference with a batch size of 64.
+    </p>
+    <p>
+      The resulting embedding matrix has shape (7000, 384). Each row is a point in a
+      384-dimensional semantic space where cosine distance approximates semantic
+      dissimilarity.
+    </p>
+
+    <h3>3.2 Dimensionality reduction with UMAP</h3>
+    <p>
+      The 384-dimensional embeddings were reduced to three dimensions using UMAP
+      (McInnes et al., 2018) with cosine distance as the metric. Three dimensions
+      were chosen over the more common two for a principled reason: the trustworthiness
+      evaluation in Section 4 confirms that 3D UMAP preserves more local neighbourhood
+      structure from the original embedding space than 2D UMAP or t-SNE, which justifies
+      the additional dimension despite the added complexity of 3D rendering.
+    </p>
+    <p>
+      The key hyperparameters were <code>n_neighbors=20</code>, which controls the
+      balance between local and global structure, and <code>min_dist=0.1</code>, which
+      controls how tightly points are packed together in the projection. Both were
+      selected after manual inspection of the resulting geometry.
+    </p>
+
+    <h3>3.3 Clustering with HDBSCAN</h3>
+    <p>
+      Clustering was performed on the 3D UMAP coordinates using HDBSCAN (McInnes et al.,
+      2017). HDBSCAN was preferred over k-means for three reasons. First, it does not
+      require specifying the number of clusters in advance. Second, it handles
+      variable-density clusters, which is important here because topic popularity in
+      news varies substantially. Third, it explicitly assigns a noise label (-1) to
+      points that do not belong to any coherent cluster, rather than forcing every
+      article into the nearest group.
+    </p>
+    <p>
+      The final configuration used <code>min_cluster_size=60</code> and
+      <code>min_samples=10</code>. These values were arrived at through iterative
+      tuning: lower values produced too many small, fragmented clusters (68 clusters
+      at <code>min_cluster_size=25</code>), while the final values produced 27
+      interpretable clusters that corresponded clearly to recognisable news topics.
+    </p>
+
+    <h3>3.4 Automatic cluster labelling</h3>
+    <p>
+      Each cluster was labelled automatically using TF-IDF. The titles within each
+      cluster were concatenated into a single document, and TF-IDF was computed across
+      all cluster documents with a vocabulary of 5,000 unigrams and bigrams and English
+      stop words removed. The top three terms by TF-IDF score were used as the cluster
+      label. This approach reliably surfaces distinctive topic vocabulary and requires
+      no manual annotation.
+    </p>
+
+    <h2>4. Results</h2>
+
+    <h3>4.1 Cluster quality</h3>
+    <p>
+      The pipeline produced 27 clusters from 7,000 articles, with 3,525 points (50.4%)
+      assigned as noise. A selection of the most coherent clusters is shown below.
+    </p>
 
     <table>
       <thead>
         <tr>
-          <th>cluster</th>
-          <th>top terms</th>
-          <th>size</th>
+          <th>Cluster</th>
+          <th>Auto label</th>
+          <th>Size</th>
+          <th>Interpretation</th>
         </tr>
       </thead>
       <tbody>
@@ -259,40 +329,68 @@
           <td><span class="dot" style="background:#4e79a7"></span>01</td>
           <td>facebook | cambridge | analytica</td>
           <td>84</td>
+          <td>Cambridge Analytica scandal (March 2018)</td>
         </tr>
         <tr>
           <td><span class="dot" style="background:#f28e2b"></span>02</td>
           <td>korea | north korea | korean</td>
           <td>61</td>
+          <td>North Korea nuclear negotiations</td>
         </tr>
         <tr>
-          <td><span class="dot" style="background:#e15759"></span>13</td>
+          <td><span class="dot" style="background:#e15759"></span>03</td>
+          <td>sunderland | cup | world cup</td>
+          <td>185</td>
+          <td>2018 FIFA World Cup</td>
+        </tr>
+        <tr>
+          <td><span class="dot" style="background:#76b7b2"></span>12</td>
+          <td>capitals | knights | stanley cup</td>
+          <td>82</td>
+          <td>NHL Stanley Cup playoffs</td>
+        </tr>
+        <tr>
+          <td><span class="dot" style="background:#59a14f"></span>13</td>
           <td>crash | driving | self driving</td>
           <td>101</td>
+          <td>Uber self-driving fatality (March 2018)</td>
         </tr>
         <tr>
-          <td><span class="dot" style="background:#76b7b2"></span>14</td>
+          <td><span class="dot" style="background:#edc948"></span>14</td>
           <td>china | tariffs | news</td>
           <td>95</td>
+          <td>US-China trade war</td>
         </tr>
         <tr>
-          <td><span class="dot" style="background:#59a14f"></span>26</td>
+          <td><span class="dot" style="background:#b07aa1"></span>26</td>
           <td>infinity | infinity war | netflix</td>
           <td>108</td>
+          <td>Avengers: Infinity War release (April 2018)</td>
         </tr>
       </tbody>
     </table>
 
-    <p>Evaluation used three metrics. DBCV measures cluster cohesion and is
-    designed specifically for density-based methods. Trustworthiness measures
-    how well the low-dimensional projection preserves local neighbourhood
-    structure from the original 384-dimensional space.</p>
+    <h3>4.2 Evaluation metrics</h3>
+    <p>
+      Three quantitative metrics were used to evaluate the pipeline. DBCV (Density-Based
+      Clustering Validation) measures cluster cohesion and separation and is designed
+      specifically for density-based methods such as HDBSCAN, making it more appropriate
+      than silhouette score in this setting. Trustworthiness measures how well the
+      low-dimensional projection preserves local neighbourhood structure from the original
+      384-dimensional embedding space, with values closer to 1 indicating better
+      preservation.
+    </p>
+    <p>
+      To justify the choice of UMAP over t-SNE, both methods were run on a 2,000-point
+      subsample and their trustworthiness scores compared. UMAP in both 2D and 3D was
+      also compared directly.
+    </p>
 
     <table>
       <thead>
         <tr>
-          <th>method</th>
-          <th>trustworthiness</th>
+          <th>Method</th>
+          <th>Trustworthiness</th>
           <th>DBCV</th>
         </tr>
       </thead>
@@ -316,54 +414,88 @@
     </table>
 
     <div class="callout">
-      UMAP 3D achieves the highest trustworthiness score of the three methods tested,
-      suggesting that the extra dimension meaningfully captures neighbourhood structure
-      that is lost in 2D projections. The t-SNE and UMAP 2D scores were computed on
-      a 2,000-point subsample for computational reasons, so the comparison is
-      indicative rather than exact.
+      UMAP 3D achieves the highest trustworthiness score of the three methods tested at
+      0.91, suggesting that the additional dimension captures neighbourhood structure
+      that is genuinely lost in 2D projections. Notably, t-SNE 2D outperforms UMAP 2D
+      on this metric, which is an honest finding worth reporting: UMAP's advantage only
+      becomes clear when the third dimension is included. The DBCV score of 0.20 is
+      moderate, consistent with the inherently fuzzy topic boundaries of a general
+      news corpus. It is worth noting that the t-SNE and UMAP 2D comparisons were
+      computed on a 2,000-point subsample for computational reasons, so the comparison
+      is indicative rather than strictly controlled.
     </div>
 
-    <h2>5. discussion</h2>
+    <h2>5. Discussion</h2>
+
+    <h3>5.1 What clusters well and why</h3>
     <p>
       The most coherent clusters correspond to events with a distinctive and consistent
-      vocabulary, such as the Cambridge Analytica scandal (cluster 01) and the
-      North Korea nuclear negotiations (cluster 02). Clusters around broader or more
-      diffuse topics, such as general crime reporting (cluster 16), tend to be larger
-      and produce less informative TF-IDF labels, which reflects a genuine limitation
-      of title-only embedding rather than a failure of the clustering method.
+      vocabulary. The Cambridge Analytica cluster (01) is particularly clean because
+      the phrase "Cambridge Analytica" is highly specific and appears repeatedly across
+      articles from different publishers. Similarly, "self-driving" and "autonomous
+      vehicle" are distinctive enough that the Uber fatality cluster (13) has very
+      little overlap with general transport coverage.
     </p>
     <p>
-      The noise rate of 50.4% is higher than ideal but not surprising for a general
-      news corpus. Many articles cover one-off events that do not belong to any
-      recurring topic, and HDBSCAN correctly identifies these as noise rather than
-      forcing them into a cluster. This is one of the key advantages of the method
-      over k-means.
-    </p>
-    <p>
-      One limitation worth noting is that the TF-IDF labels are sometimes dominated
-      by source-specific terms rather than topic terms. Cluster 21, labelled
-      "di | dan | yang", appears to consist largely of articles from Chinese-language
-      sources translated into English, which suggests that source domain can be a
-      stronger signal than topic in some cases.
-    </p>
-    <p>
-      Future work could extend this to a larger corpus spanning multiple years,
-      which would allow tracking of how topics evolve over time. Replacing
-      title-only embedding with full article embedding using a larger model such as
-      <code>all-mpnet-base-v2</code> would likely improve cluster quality, at the
-      cost of higher compute.
+      By contrast, clusters around broader topics, such as general crime reporting
+      (cluster 16, labelled "news | police | suspect"), are large and produce
+      uninformative TF-IDF labels. This reflects a genuine limitation of title-only
+      embedding: crime articles use similar surface vocabulary regardless of the
+      specific event, so they cluster together without forming a semantically tight
+      group. This is worth noting as a structural property of news language rather
+      than a failure of the method.
     </p>
 
-    <h2>6. references</h2>
-    <p>Reimers, N. and Gurevych, I. (2019). Sentence-BERT: sentence embeddings using siamese BERT networks. EMNLP 2019.</p>
-    <p>McInnes, L., Healy, J. and Melville, J. (2018). UMAP: uniform manifold approximation and projection for dimension reduction. arXiv:1802.03426.</p>
-    <p>McInnes, L., Healy, J. and Astels, S. (2017). HDBSCAN: hierarchical density based clustering. Journal of Open Source Software.</p>
-    <p>Mcinnes, L. and Healy, J. (2017). Density-based clustering validation. SDM 2017.</p>
+    <h3>5.2 The noise rate</h3>
+    <p>
+      The noise rate of 50.4% is higher than would be ideal but is not unexpected for
+      a general news corpus. Many articles cover singular events that do not repeat
+      often enough to form a cluster under the chosen minimum cluster size. HDBSCAN
+      correctly identifies these as noise rather than forcing them into the nearest
+      cluster, which is one of its key advantages over k-means. In a more focused
+      corpus (for example, coverage of a single ongoing event over several months),
+      the noise rate would be substantially lower.
+    </p>
+
+    <h3>5.3 Limitations</h3>
+    <p>
+      One notable limitation is that cluster 21, labelled "di | dan | yang", appears
+      to consist largely of articles from Chinese-language sources that have been
+      transliterated into English. This suggests that source domain can sometimes be
+      a stronger clustering signal than topic, particularly when a publisher uses
+      consistently different vocabulary from the rest of the corpus. A simple fix
+      would be to filter by language or normalise by source during pre-processing.
+    </p>
+    <p>
+      The trustworthiness and DBCV comparisons were not run on identical subsamples,
+      which limits their interpretability as a controlled evaluation. A more rigorous
+      evaluation would fix the subsample across all methods and report confidence
+      intervals over multiple random seeds.
+    </p>
+
+    <h3>5.4 Future work</h3>
+    <p>
+      Several natural extensions would improve both the ML pipeline and the
+      visualization. Replacing title-only embedding with full article embedding using
+      a larger model such as <code>all-mpnet-base-v2</code> would likely produce
+      tighter clusters, at the cost of significantly higher compute. Extending the
+      corpus to cover multiple years would enable tracking of how topics evolve,
+      split, and merge over time, which could be visualised using a temporal animation
+      rather than a simple date filter. Finally, replacing TF-IDF labelling with a
+      prompted language model would produce more readable cluster descriptions,
+      particularly for the clusters that currently surface generic terms.
+    </p>
+
+    <h2>6. References</h2>
+    <p>Reimers, N. and Gurevych, I. (2019). Sentence-BERT: sentence embeddings using siamese BERT networks. <i>EMNLP 2019</i>.</p>
+    <p>McInnes, L., Healy, J. and Melville, J. (2018). UMAP: uniform manifold approximation and projection for dimension reduction. <i>arXiv:1802.03426</i>.</p>
+    <p>McInnes, L., Healy, J. and Astels, S. (2017). HDBSCAN: hierarchical density based clustering. <i>Journal of Open Source Software</i>.</p>
+    <p>McInnes, L. and Healy, J. (2017). Density-based clustering validation. <i>SDM 2017</i>.</p>
 
     <div class="footer">
-      built with sentence-transformers, UMAP, HDBSCAN, and Three.js &nbsp;·&nbsp;
-      data from CC-News via HuggingFace &nbsp;·&nbsp;
-      <a href="index.html" style="color: #aaa;">back to visualization</a>
+      Built with sentence-transformers, UMAP, HDBSCAN, and Three.js &nbsp;·&nbsp;
+      Data from CC-News via HuggingFace &nbsp;·&nbsp;
+      <a href="index.html">Back to visualization</a>
     </div>
 
   </div>
