@@ -25,9 +25,40 @@
       height: 100vh;
       pointer-events: none;
     }
+    nav {
+      position: fixed;
+      top: 0; left: 0; right: 0;
+      height: 48px;
+      background: white;
+      border-bottom: 0.5px solid #e0e0e0;
+      display: flex;
+      align-items: center;
+      padding: 0 32px;
+      gap: 24px;
+      z-index: 100;
+      pointer-events: all;
+    }
+    .nav-brand {
+      font-size: 14px;
+      font-weight: 500;
+      color: #1a1a1a;
+      text-decoration: none;
+    }
+    .nav-links {
+      display: flex;
+      gap: 20px;
+      margin-left: auto;
+    }
+    .nav-links a {
+      font-size: 13px;
+      color: #888;
+      text-decoration: none;
+    }
+    .nav-links a:hover  { color: #1a1a1a; }
+    .nav-links a.active { color: #1a1a1a; font-weight: 500; }
     #disclaimer {
       position: fixed;
-      top: 16px;
+      top: 64px;
       left: 50%;
       transform: translateX(-50%);
       background: white;
@@ -51,6 +82,7 @@
       max-width: 280px;
       pointer-events: none;
       box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+      z-index: 100;
     }
     #tooltip .t-title   { font-size: 13px; font-weight: 500; color: #1a1a1a; line-height: 1.5; margin-bottom: 4px; }
     #tooltip .t-meta    { font-size: 11px; color: #888; }
@@ -70,6 +102,7 @@
       width: 210px;
       pointer-events: all;
       box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+      z-index: 100;
     }
     #legend h3 {
       font-size: 11px;
@@ -121,6 +154,7 @@
       width: 520px;
       pointer-events: all;
       box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+      z-index: 100;
     }
     #timeline h3 {
       font-size: 11px;
@@ -137,7 +171,7 @@
 
     #sidebar {
       position: fixed;
-      top: 20px;
+      top: 68px;
       left: 20px;
       width: 280px;
       background: white;
@@ -146,9 +180,10 @@
       padding: 16px;
       pointer-events: all;
       box-shadow: 0 2px 8px rgba(0,0,0,0.06);
-      max-height: calc(100vh - 120px);
+      max-height: calc(100vh - 140px);
       overflow-y: auto;
       display: none;
+      z-index: 100;
     }
     #sidebar-header {
       display: flex;
@@ -199,11 +234,20 @@
   </style>
 </head>
 <body>
+
+  <nav>
+    <a class="nav-brand" href="index.html">Newsphere</a>
+    <div class="nav-links">
+      <a href="index.html" class="active">visualization</a>
+      <a href="writeup.html">write-up</a>
+    </div>
+  </nav>
+
   <div id="canvas-container"></div>
   <div id="ui-overlay"></div>
 
   <div id="disclaimer">
-    articles are from 2018 — some links may no longer be active
+    articles are from 2018 -- some links may no longer be active
   </div>
 
   <div id="tooltip">
@@ -490,7 +534,7 @@
 
       const meta = document.createElement('div');
       meta.className   = 'sidebar-article-meta';
-      meta.textContent = `${p.date.slice(0, 10)} — ${p.source}`;
+      meta.textContent = `${p.date.slice(0, 10)} -- ${p.source}`;
 
       div.appendChild(a);
       div.appendChild(meta);
@@ -546,7 +590,7 @@
       const clusterLabel = p.cluster === -1 ? 'noise' : window.newsData.clusters[p.cluster];
 
       ttTitle.textContent   = p.title;
-      ttMeta.textContent    = `${p.date.slice(0, 10)} — ${p.source}`;
+      ttMeta.textContent    = `${p.date.slice(0, 10)} -- ${p.source}`;
       ttCluster.textContent = clusterLabel;
 
       tooltip.style.display = 'block';
