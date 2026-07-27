@@ -1,6 +1,6 @@
 # Newsphere
 
-An interactive 3D semantic map of 7,000 news articles from 2018, built as an MSc project in unsupervised NLP. No labels were provided at any stage — the topic clusters emerge entirely from the geometry of sentence embeddings.
+An interactive 3D semantic map of 7,000 news articles from 2018, built as a project in unsupervised NLP. No labels were provided at any stage, the topic clusters emerge entirely from the geometry of sentence embeddings.
 
 **[Open the visualization](https://rahulrayy.github.io/Corpus-Map/index.html)** · **[Read the write-up](https://rahulrayy.github.io/Corpus-Map/writeup.html)**
 
